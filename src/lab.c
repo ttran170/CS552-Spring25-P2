@@ -4,12 +4,16 @@
 #include <readline/readline.h>
 #include <readline/history.h>
 #include <pwd.h>
+#include <signal.h>
+#include <string.h>
+#include <errno.h>
+#include <ctype.h>
 
 
 
 char *get_prompt(const char *env){
     char* environVar = getenv(env);
-    if (environVar == NULL && *env != NULL) {
+    if (environVar == NULL) {
         return strdup("shell>");
     }
     else{
@@ -23,7 +27,8 @@ int change_dir(char **dir){
         char* home = getenv("HOME");
         if (home == NULL) {
             // if home is not set, find home
-            struct passwd *info = getpwuid(getuid())->pw_dir;
+            struct passwd *info = getpwuid(getuid());
+            home = info->pw_dir;
         }
         if (chdir(home) != 0) {
             perror("change_dir");
@@ -100,20 +105,23 @@ bool do_builtin(struct shell *sh, char **argv){
     }
 
     if (strcmp(argv[0], "exit") == 0) {
-        exit(0);
+        sh_destroy(sh);
+        exit(1);
     }
 
     else if (strcmp(argv[0], "cd") == 0) {
-        change_dir(argv[1]);
+        char *path = argv[1];
+        if (change_dir(&path) != 0) {
+            return false;
+        }
     }
 
     else if (strcmp(argv[0], "history") == 0) {
-        HIST_ENTRY **history_list = history_list();
-        if (history_list == NULL) {
-            return false;
-        }
-        for (int i = 0; history_list[i] != NULL; i++) {
-            printf("%d: %s\n", i + 1, history_list[i]->line);
+        HIST_ENTRY **history = history_list();
+        if (history) {
+            for (int i = 0; history[i] != NULL; i++) {
+                printf("%d: %s\n", i + 1, history[i]->line);
+            }
         }
     }
     else{
@@ -133,16 +141,25 @@ void sh_init(struct shell *sh){
         {
             kill(-sh->shell_pgid, SIGTTIN);
         }
+    
+        // shell id
+        sh->shell_pgid = getpid();
+    
+        // process group id
+        if(setpgid(sh->shell_pgid, sh->shell_pgid) < 0){
+            perror("setpgid");
+            exit(1);
+        }
+        tcsetpgrp(sh->shell_terminal, sh->shell_pgid);
+        tcgetattr(sh->shell_terminal, &sh->shell_tmodes);
     }
     
-    // shell id
-    sh->shell_pgid = getpid();
-
-    // process group id
-    if(setpgid(sh->shell_pgid, sh->shell_pgid) < 0){
-        perror("setpgid");
-        exit(1);
-    }
+    // Ignore signals in the shell
+    signal(SIGINT, SIG_IGN);
+    signal(SIGQUIT, SIG_IGN);
+    signal(SIGTSTP, SIG_IGN);
+    signal(SIGTTIN, SIG_IGN);
+    signal(SIGTTOU, SIG_IGN);
 }
 
 void sh_destroy(struct shell *sh){
@@ -151,11 +168,19 @@ void sh_destroy(struct shell *sh){
 }
 
 void parse_args(int argc, char **argv){
-    for (int i = 0; i < argc; i++){
-        if(strcmp(argv[i],"-v") == 0){
+    int c;
+    while ((c=getopt(argc, argv, "v")) != -1)
+    {
+        switch (c)
+        {
+        case 'v':
             // print version then skedaddle
             printf("Version %d.%d\n",lab_VERSION_MAJOR, lab_VERSION_MINOR);
             exit(0);
+            break;
+        
+        default:
+            break;
         }
     }
 }
