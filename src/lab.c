@@ -2,12 +2,12 @@
 #include "lab.h"
 #include <stdio.h>
 #include <readline/readline.h>
-#include <readline/history.h>
 #include <pwd.h>
 #include <signal.h>
 #include <string.h>
 #include <errno.h>
 #include <ctype.h>
+#include <readline/history.h>
 
 
 
@@ -52,24 +52,34 @@ char **cmd_parse(char const *line){
     }
 
     // Allocate memory for the arguments
-    
-    char** args = malloc(sizeof(char*) * (sysconf(_SC_ARG_MAX) + 1));
+    long maxArgs = sysconf(_SC_ARG_MAX);
+    char** args = malloc(sizeof(char*) * (maxArgs + 1));
     char* lineCopy = strdup(line);
-    char* token = strtok(lineCopy, " ");
+    char* trimmedLine = trim_white(lineCopy);
+    free(lineCopy);
+
+    char* token = strtok(trimmedLine, " ");
+
     int i = 0;
-    while (token != NULL && i < sysconf(_SC_ARG_MAX-1)) {
+    while (token != NULL && i < maxArgs) {
         args[i] = strdup(token);
         token = strtok(NULL, " ");
         i++;
     }
+    args[i] = NULL;
+    free(trimmedLine);
     return args;
 }
 
 void cmd_free(char ** line){
     if (line != NULL) {
-        for (int i = 0; i < sysconf(_SC_ARG_MAX); i++)
+        long maxArgs = sysconf(_SC_ARG_MAX);
+        for (int i = 0; i < maxArgs; i++)
         {
-            free(line[i]);
+            if (line[i] != NULL) {
+                free(line[i]);
+            }
+            
         }
         free(line);
     }
@@ -81,8 +91,10 @@ char *trim_white(char *line){
         return NULL;
     }
 
+    char* lineCopy = strdup(line);
+
     // Trim leading whitespace
-    char *start = line;
+    char *start = lineCopy;
     while (*start && isspace((unsigned char)*start)) {
         start++;
     }
