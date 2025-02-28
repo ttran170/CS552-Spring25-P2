@@ -9,6 +9,8 @@
 #include <ctype.h>
 #include <readline/history.h>
 
+// fixed compiler errors with includes
+
 
 
 char *get_prompt(const char *env){
@@ -131,6 +133,7 @@ bool do_builtin(struct shell *sh, char **argv){
     }
 
     else if (strcmp(argv[0], "history") == 0) {
+        // another compiler error was in how I had named a variable the same as a function without realizing it
         HIST_ENTRY **history = history_list();
         if (history) {
             for (int i = 0; history[i] != NULL; i++) {
