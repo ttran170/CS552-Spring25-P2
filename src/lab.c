@@ -178,7 +178,6 @@ void sh_init(struct shell *sh){
 
 void sh_destroy(struct shell *sh){
     free(sh->prompt);
-    free(sh);
 }
 
 void parse_args(int argc, char **argv){
