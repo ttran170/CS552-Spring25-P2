@@ -23,7 +23,7 @@ char *get_prompt(const char *env){
 
 
 int change_dir(char **dir){
-    if (dir == NULL || *dir == NULL) {
+    if (dir == NULL || dir[1] == NULL) {
         char* home = getenv("HOME");
         if (home == NULL) {
             // if home is not set, find home
@@ -36,7 +36,7 @@ int change_dir(char **dir){
         }
     }
     else{
-        if(chdir(*dir) != 0){
+        if(chdir(dir[1]) != 0){
             fprintf(stderr, "chdir failed: failed to change to %s: %s\n", *dir, strerror(errno));
             return -1;
         }
@@ -107,8 +107,10 @@ char *trim_white(char *line){
 
     // Null-terminate the trimmed string
     *(end + 1) = '\0';
+    char* out = strdup(start);
+    free(lineCopy);
 
-    return start;
+    return out;
 }
 
 bool do_builtin(struct shell *sh, char **argv){
@@ -176,7 +178,7 @@ void sh_init(struct shell *sh){
 
 void sh_destroy(struct shell *sh){
     free(sh->prompt);
-    //sh not malloc'd in main, so no need to free sh
+    free(sh);
 }
 
 void parse_args(int argc, char **argv){
